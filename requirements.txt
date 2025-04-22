@@ -1,0 +1,7 @@
+numpy<2
+pandas
+python-dotenv
+serpapi
+google-generativeai
+requests
+beautifulsoup4
