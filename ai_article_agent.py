@@ -543,34 +543,13 @@ Return the complete expanded article, not just the additions.
 """
                 expansion_response = self._generate_content_with_retry(expansion_prompt)
                 article_content = expansion_response.text
-            return {
-                "title": self._generate_seo_title(topic, primary_keyword),
-                "content": article_content,
-                "word_count": len(article_content.split()),
-                "meta_description": self._generate_meta_description(article_content, primary_keyword)
-            }
         except Exception as e:
-            print(f"Error generating article: {e}")
-            return None
-
-    def _generate_seo_title(self, topic, primary_keyword):
-        """Generate an SEO-friendly title for the article"""
-        prompt = f"Generate a catchy and SEO-optimized title for an article about '{topic}' with primary keyword '{primary_keyword}'."
-        try:
-            response = self._generate_content_with_retry(prompt)
-            title = response.text.strip().strip('"').strip("'")
-            return title
-        except Exception as e:
-            print(f"Error generating SEO title: {e}")
-            return f"{topic} - {primary_keyword}"
-
-    def _generate_meta_description(self, article_content, primary_keyword):
-        """Generate a meta description for the article"""
-        prompt = f"Write a concise and compelling meta description for an article about '{primary_keyword}'. The article content is:\n{article_content[:500]}"
-        try:
-            response = self._generate_content_with_retry(prompt)
-            description = response.text.strip().replace('\n', ' ')
-            return description
-        except Exception as e:
-            print(f"Error generating meta description: {e}")
-            return f"An article about {primary_keyword}."
+            print(f"Error generating article content: {e}")
+        
+        # Return a dictionary with article details for saving
+        return {
+            "title": topic,
+            "content": article_content,
+            "word_count": len(article_content.split()),
+            "meta_description": ""  # Can be enhanced to generate meta description if needed
+        }

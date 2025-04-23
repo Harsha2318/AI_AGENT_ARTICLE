@@ -2,22 +2,22 @@ import os
 from ai_article_agent import AIArticleAgent
 
 def main():
-    # Initialize the AI article generation agent with necessary API keys
+    # Initialize the agent
     agent = AIArticleAgent(
         gemini_api_key=os.environ.get("GEMINI_API_KEY"),
         serpapi_key=os.environ.get("SERPAPI_KEY")
     )
     
+    # Step 1: Train on your brand voice (use your own URLs)
     print("Training on brand voice...")
     brand_urls = [
         "https://www.aiweekly.com/p/google-s-notebooklm-just-made-content-creation-10x-easier-youtube-to-blog-or-guide-in-minutes",
         "https://medium.com/aiguys/why-gen-ai-boom-is-fading-and-whats-next-7f1363b92696",
         "https://www.forbes.com/sites/bernardmarr/2023/10/02/the-top-5-ai-trends-in-2024/?sh=1f2a0c6b7d8e",
+    
     ]
-    # Train the agent using specified URLs to capture the brand's voice and style
     agent.train_on_brand_voice(brand_content_urls=brand_urls)
     print("Brand voice training complete!")
-    
     
     # Step 2: Define your topic and keywords by user input
     topic = input("Enter the article topic: ").strip()
@@ -44,10 +44,6 @@ def main():
         target_word_count=3000,
         include_faq=True
     )
-    
-    if article is None:
-        print("Article generation failed. Please try again.")
-        return
     
     # Step 5: Save the article
     with open(f"{topic.replace(' ', '_')}.md", "w", encoding="utf-8") as f:
