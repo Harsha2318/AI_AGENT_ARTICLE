@@ -43,7 +43,6 @@ A powerful web application that generates high-quality AI-focused articles using
 
 - **Backend**: FastAPI
 - **AI Model**: Google Gemini AI
-- **Database**: SQLite
 - **Frontend**: HTML/CSS/JavaScript
 - **Documentation**: OpenAPI/Swagger
 
