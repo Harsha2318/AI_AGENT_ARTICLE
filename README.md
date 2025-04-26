@@ -1,74 +1,71 @@
 # AI Article Generator
 
-AI Article Generator is a Python-based tool that leverages advanced AI models like Google's Gemini and SerpApi to generate SEO-optimized, comprehensive articles. It supports brand voice training, competitor research, and content generation with expert quotes, key facts, and FAQ sections to create engaging and factually accurate articles.
+This project is a web application that generates AI-related articles using advanced natural language processing techniques. It provides a user-friendly interface for generating and managing AI-focused content.
 
 ## Features
 
-- Train the AI on your brand voice using URLs or text samples
-- Research topics with SERP analysis and competitor content insights
-- Generate SEO-optimized articles with structured outlines and keyword integration
-- Include expert quotes, key facts, and FAQ sections automatically
-- Save generated articles as markdown files for easy publishing
+- Web-based interface for article generation
+- Support for various AI-related topics
+- Real-time article generation
+- Clean and modern UI
+- Easy-to-use interface
 
-## Installation
+## Technologies Used
+
+- Python
+- Flask (Web Framework)
+- HTML/CSS
+- Git
+
+## Setup Instructions
 
 1. Clone the repository:
-
    ```bash
-   git clone <repository-url>
-   cd AI_ARTICLEGENERATOR
+   git clone https://github.com/Harsha2318/AI_AGENT_ARTICLE.git
+   cd AI_AGENT_ARTICLE
    ```
 
-2. Create and activate a virtual environment (optional but recommended):
-
+2. Create and activate a virtual environment:
    ```bash
    python -m venv venv
    # On Windows
-   venv\Scripts\activate
-   # On macOS/Linux
+   .\venv\Scripts\activate
+   # On Unix or MacOS
    source venv/bin/activate
    ```
 
-3. Install the required dependencies:
-
+3. Install required dependencies:
    ```bash
    pip install -r requirements.txt
    ```
 
-4. Set up your API keys:
+4. Run the application:
+   ```bash
+   python app.py
+   ```
 
-   - Create a `.env` file in the project root directory.
-   - Add your Gemini API key and SerpApi key:
+5. Open your web browser and navigate to `http://localhost:5000`
 
-     ```
-     GEMINI_API_KEY=your_gemini_api_key_here
-     SERPAPI_KEY=your_serpapi_key_here
-     ```
+## Project Structure
 
-## Usage
-
-Run the main script to generate an article:
-
-```bash
-python generate_article.py
 ```
-
-The script will:
-
-1. Train the AI on your brand voice using predefined URLs (you can modify these in the script).
-2. Prompt you to enter the article topic, primary keyword, and secondary keywords.
-3. Research the topic using SERP analysis and competitor content.
-4. Generate a comprehensive, SEO-optimized article.
-5. Save the article as a markdown file named after the topic.
-
-## Output
-
-The generated article will be saved as a `.md` file in the project directory, ready for publishing or further editing.
+AI_AGENT_ARTICLE/
+├── app.py              # Main Flask application
+├── requirements.txt    # Project dependencies
+├── static/            # Static files (CSS, JS, images)
+├── templates/         # HTML templates
+└── .gitignore        # Git ignore file
+```
 
 ## Contributing
 
-Contributions are welcome! Feel free to open issues or submit pull requests to improve the project.
+Feel free to fork this repository and submit pull requests. For major changes, please open an issue first to discuss what you would like to change.
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Author
+
+- Harsha P
+- Contact: harshagowda2318@gmail.com
