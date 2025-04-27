@@ -223,32 +223,6 @@
             <p class="lead">Generate well-structured articles on any topic</p>
         </div>
 
-        <!-- Mermaid Diagram Dynamic Form (Classic POST) -->
-        <div class="form-section mb-4">
-            <h3>Dynamic Mermaid Diagram Generator</h3>
-            <form method="post" action="/">
-                <div class="mb-3">
-                    <label for="topic" class="form-label">Topic (optional)</label>
-                    <input type="text" class="form-control" id="topic" name="topic" placeholder="Enter a topic" value="{{ topic }}">
-                </div>
-
-                <button type="submit" class="btn btn-success">Generate Diagram</button>
-            </form>
-
-            {% if error %}
-            <div class="alert alert-danger mt-3">{{ error }}</div>
-            {% endif %}
-            {% if svg %}
-            <div class="preview-section mt-4">
-                <h5>Rendered Diagram:</h5>
-                <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px;">
-                    {{ svg | safe }}
-                </div>
-
-            </div>
-            {% endif %}
-        </div>
-
         <div class="config-section">
             <h3>Configuration</h3>
             <div class="row">
