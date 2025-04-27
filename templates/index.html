@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Article Generator</title>
+    <link rel="icon" href="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f4d6.png" type="image/png" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -222,6 +223,32 @@
             <p class="lead">Generate well-structured articles on any topic</p>
         </div>
 
+        <!-- Mermaid Diagram Dynamic Form (Classic POST) -->
+        <div class="form-section mb-4">
+            <h3>Dynamic Mermaid Diagram Generator</h3>
+            <form method="post" action="/">
+                <div class="mb-3">
+                    <label for="topic" class="form-label">Topic (optional)</label>
+                    <input type="text" class="form-control" id="topic" name="topic" placeholder="Enter a topic" value="{{ topic }}">
+                </div>
+
+                <button type="submit" class="btn btn-success">Generate Diagram</button>
+            </form>
+
+            {% if error %}
+            <div class="alert alert-danger mt-3">{{ error }}</div>
+            {% endif %}
+            {% if svg %}
+            <div class="preview-section mt-4">
+                <h5>Rendered Diagram:</h5>
+                <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px;">
+                    {{ svg | safe }}
+                </div>
+
+            </div>
+            {% endif %}
+        </div>
+
         <div class="config-section">
             <h3>Configuration</h3>
             <div class="row">
@@ -234,7 +261,7 @@
                         </div>
                         <div class="mb-3">
                             <label for="wordCount" class="form-label">Target Word Count</label>
-                            <input type="number" class="form-control" id="wordCount" value="2000" min="100" max="5000">
+                            <input type="number" class="form-control" id="wordCount" value="3000" min="100" max="5000">
                         </div>
                         <div class="mb-3">
                             <label for="language" class="form-label">Language</label>
@@ -257,6 +284,10 @@
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="includeDiagrams">
                             <label class="form-check-label" for="includeDiagrams">Include Diagrams</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="includeFlowDiagram">
+                            <label class="form-check-label" for="includeFlowDiagram">Include Flow Diagram</label>
                         </div>
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="includeExamples">
@@ -443,6 +474,17 @@
                     return hljs.highlight(code, { language: lang }).value;
                 }
                 return hljs.highlightAuto(code).value;
+            },
+            // Escape HTML to prevent unescaped HTML in code blocks
+            mangle: false,
+            headerIds: false,
+            sanitizer: function(html) {
+                // Escape HTML entities
+                return html.replace(/&/g, '&amp;')
+                           .replace(/</g, '<')
+                           .replace(/>/g, '>')
+                           .replace(/"/g, '"')
+                           .replace(/'/g, '&#39;');
             }
         });
 
@@ -456,6 +498,8 @@
                 
                 const historyList = document.getElementById('historyList');
                 data.articles.forEach(article => {
+                    const wordCount = article.metrics?.content_metrics?.word_count ?? 0;
+                    const readingTime = article.metrics?.content_metrics?.reading_time_minutes ?? 0;
                     const item = document.createElement('div');
                     item.className = 'history-item';
                     item.onclick = () => loadArticle(article.id);
@@ -463,8 +507,8 @@
                         <h5>${article.topic}</h5>
                         <div class="date">${new Date(article.created_at).toLocaleString()}</div>
                         <div class="metrics">
-                            <span>${article.metrics.content_metrics.word_count} words</span> •
-                            <span>${article.metrics.content_metrics.reading_time_minutes.toFixed(1)} min read</span>
+                            <span>${wordCount} words</span> •
+                            <span>${readingTime.toFixed(1)} min read</span>
                         </div>
                     `;
                     historyList.appendChild(item);
@@ -482,7 +526,22 @@
                 const article = await response.json();
                 
                 // Update preview
-                document.getElementById('previewContent').innerHTML = marked.parse(article.content);
+                // Custom logic: If the article contains an SVG block, insert it as HTML directly to allow SVG rendering
+                let articleHtml = marked.parse(article.content);
+                let tempDiv = document.createElement('div');
+                tempDiv.innerHTML = articleHtml;
+                let previewContent = document.getElementById('previewContent');
+                previewContent.innerHTML = '';
+                Array.from(tempDiv.childNodes).forEach(node => {
+                    if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'DIV' && node.innerHTML.trim().startsWith('<svg')) {
+                        previewContent.insertAdjacentHTML('beforeend', node.innerHTML);
+                    } else {
+                        previewContent.appendChild(node);
+                    }
+                });
+                if (!previewContent.innerHTML.trim()) {
+                    previewContent.innerHTML = articleHtml;
+                }
                 
                 // Update markdown
                 document.getElementById('markdownContent').textContent = article.content;
@@ -575,22 +634,23 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({
-                        topic,
-                        target_word_count: parseInt(wordCount),
-                        include_code: includeCode,
-                        include_diagrams: includeDiagrams,
-                        include_examples: includeExamples,
-                        include_references: includeReferences,
-                        include_summary: includeSummary,
-                        include_toc: includeToc,
-                        include_key_points: includeKeyPoints,
-                        include_faq: includeFaq,
-                        tone,
-                        audience,
-                        complexity,
-                        language
-                    })
+            body: JSON.stringify({
+                topic,
+                target_word_count: parseInt(wordCount),
+                include_code: includeCode,
+                include_diagrams: includeDiagrams,
+                include_flow_diagram: document.getElementById('includeFlowDiagram').checked,
+                include_examples: includeExamples,
+                include_references: includeReferences,
+                include_summary: includeSummary,
+                include_toc: includeToc,
+                include_key_points: includeKeyPoints,
+                include_faq: includeFaq,
+                tone,
+                audience,
+                complexity,
+                language
+            })
                 });
 
                 if (!response.ok) {
@@ -599,14 +659,54 @@
 
                 const data = await response.json();
                 
-                // Update preview
-                document.getElementById('previewContent').innerHTML = marked.parse(data.article);
+                // Update preview (handled below if diagram present)
+                if (!data.flow_diagram_svg) {
+                    document.getElementById('previewContent').innerHTML = marked.parse(data.article);
+                }
                 
                 // Update markdown
                 document.getElementById('markdownContent').textContent = data.article;
                 
                 // Update metrics
                 updateMetrics(data.metrics);
+
+                // Insert flow diagram SVG into the article preview at the correct place
+                if (data.flow_diagram_svg) {
+                    let previewDiv = document.getElementById('previewContent');
+                    let tempDiv = document.createElement('div');
+                    let articleHtml = marked.parse(data.article);
+                    tempDiv.innerHTML = articleHtml;
+                    // Remove duplicate h1/h2 elements by text content
+                    const seenHeadings = new Set();
+                    [...tempDiv.querySelectorAll('h1, h2')].forEach(heading => {
+                        const text = heading.textContent.trim();
+                        if (seenHeadings.has(text)) {
+                            heading.parentNode.removeChild(heading);
+                        } else {
+                            seenHeadings.add(text);
+                        }
+                    });
+                    // Remove duplicate consecutive h2 elements
+                    let lastH2 = null;
+                    [...tempDiv.querySelectorAll('h2')].forEach(h2 => {
+                        if (lastH2 && h2.previousElementSibling && h2.previousElementSibling.tagName === 'H2') {
+                            h2.parentNode.removeChild(h2);
+                        } else {
+                            lastH2 = h2;
+                        }
+                    });
+                    // Insert SVG after first <h1>, <h2>, or <p>
+                    let insertAfter = tempDiv.querySelector('h1, h2, p');
+                    if (insertAfter) {
+                        let svgWrapper = document.createElement('div');
+                        svgWrapper.innerHTML = data.flow_diagram_svg;
+                        svgWrapper.style.margin = '2rem 0';
+                        svgWrapper.style.display = 'flex';
+                        svgWrapper.style.justifyContent = 'center';
+                        insertAfter.parentNode.insertBefore(svgWrapper, insertAfter.nextSibling);
+                    }
+                    previewDiv.innerHTML = tempDiv.innerHTML;
+                }
                 
                 // Show results
                 document.querySelector('.loading').style.display = 'none';
@@ -640,6 +740,11 @@
 
         // Load initial history
         loadHistory();
+
+        // Define loadMoreHistory function to fix the ReferenceError
+        function loadMoreHistory() {
+            loadHistory();
+        }
     </script>
 </body>
-</html> 
+</html>

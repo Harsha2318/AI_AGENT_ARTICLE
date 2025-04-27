@@ -1,9 +1,13 @@
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, status, Form
+from mermaid_integration import generate_mermaid_with_gemini, mermaid_to_svg
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi import Request
+from fastapi import Request, APIRouter
+
+# Mermaid dynamic integration
+import traceback
 from pydantic import BaseModel, Field
 import google.generativeai as genai
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -58,6 +62,25 @@ init_db()
 # Load environment variables
 load_dotenv(override=True)
 
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global api_key
+    try:
+        # Get API key from environment
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            logger.error("GEMINI_API_KEY not found in environment variables")
+        else:
+            logger.info("Testing Gemini API connection...")
+            if not test_api_connection(api_key):
+                api_key = None
+    except Exception as e:
+        logger.error(f"Error initializing Gemini API: {str(e)}")
+        api_key = None
+    yield
+
 # Initialize FastAPI app with detailed documentation
 app = FastAPI(
     title="AI Article Generator API",
@@ -82,8 +105,18 @@ app = FastAPI(
     """,
     version="1.0.0",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
+    lifespan=lifespan
 )
+
+# Create required directories
+static_dir = Path("static")
+templates_dir = Path("templates")
+
+for directory in [static_dir, templates_dir]:
+    if not directory.exists():
+        directory.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Created {directory} directory")
 
 # Mount static files and templates
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -98,6 +131,52 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Initialize API key
+api_key = None
+
+def test_api_connection(api_key: str) -> bool:
+    try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
+        headers = {
+            'Content-Type': 'application/json'
+        }
+        test_data = {
+            "contents": [{
+                "parts": [{"text": "Test message"}]
+            }]
+        }
+        
+        response = requests.post(url, headers=headers, json=test_data)
+        if response.status_code == 200:
+            logger.info("Gemini API connection successful")
+            return True
+        else:
+            logger.error(f"Failed to connect to Gemini API: {response.text}")
+            return False
+                    
+    except Exception as e:
+        logger.error(f"Error testing API connection: {str(e)}")
+        return False
+
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global api_key
+    try:
+        # Get API key from environment
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            logger.error("GEMINI_API_KEY not found in environment variables")
+        else:
+            logger.info("Testing Gemini API connection...")
+            if not test_api_connection(api_key):
+                api_key = None
+    except Exception as e:
+        logger.error(f"Error initializing Gemini API: {str(e)}")
+        api_key = None
+    yield
+
 # Custom exception handler
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc):
@@ -106,54 +185,6 @@ async def global_exception_handler(request, exc):
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={"detail": "An unexpected error occurred", "error": str(exc)}
     )
-
-# Initialize Gemini API
-llm = None  # Initialize llm as None
-
-try:
-    # Get API key from environment
-    gemini_api_key = os.getenv("GEMINI_API_KEY")
-    
-    # Log the API key status (without exposing the actual key)
-    api_key_status = "Not set" if not gemini_api_key else "Set (but not verified)"
-    logger.info(f"API Key Status: {api_key_status}")
-    
-    if not gemini_api_key:
-        error_msg = """
-        Gemini API key not found in environment variables.
-        
-        To fix this:
-        1. Create a .env file in your project root
-        2. Add this line to it:
-           GEMINI_API_KEY=your_actual_api_key
-        3. Get your API key from: https://makersuite.google.com/app/apikey
-        4. Restart the server
-        
-        Current API key status: Not set
-        """
-        logger.error(error_msg)
-        raise ValueError(error_msg)
-    
-    logger.info("Initializing Gemini API...")
-    genai.configure(api_key=gemini_api_key)
-    
-    # Initialize LangChain with Gemini
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-1.0-pro",
-        google_api_key=gemini_api_key,
-        temperature=0.7,
-        model_kwargs={
-            "generation_config": {
-                "max_output_tokens": 2048,
-                "temperature": 0.7,
-                "top_p": 0.8,
-                "top_k": 40
-            }
-        }
-    )
-    logger.info("Gemini API initialized successfully")
-except Exception as e:
-    logger.error(f"Error initializing Gemini API: {str(e)}")
 
 # Define request models with detailed documentation
 class ArticleRequest(BaseModel):
@@ -167,13 +198,14 @@ class ArticleRequest(BaseModel):
     include_toc: bool = Field(default=True, description="Whether to include a table of contents")
     include_key_points: bool = Field(default=True, description="Whether to include key points section")
     include_faq: bool = Field(default=False, description="Whether to include FAQ section")
-    target_word_count: int = Field(default=5000, description="Target word count for the article", example=2000)
+    target_word_count: int = Field(default=5000, description="Target word count for the article", example=3000)
     tone: str = Field(default="professional", description="Writing tone for the article", example="professional")
     audience: str = Field(default="general", description="Target audience for the article", example="general")
     complexity: str = Field(default="medium", description="Content complexity level", example="medium")
     language: str = Field(default="en", description="Language for the article", example="en")
     style: Optional[Dict[str, Any]] = Field(default=None, description="Styling preferences for the article")
     seo: Optional[Dict[str, Any]] = Field(default=None, description="SEO preferences for the article")
+    include_flow_diagram: bool = Field(default=False, description="Whether to include a flow diagram at the end of the article")
 
 class ArticleResponse(BaseModel):
     id: int
@@ -200,13 +232,19 @@ def get_article(article_id: int) -> Optional[Dict[str, Any]]:
     row = c.fetchone()
     conn.close()
     if row:
+        metrics = json.loads(row[4])
+        # Ensure content_metrics and word_count exist
+        if "content_metrics" not in metrics:
+            metrics["content_metrics"] = {}
+        if "word_count" not in metrics["content_metrics"]:
+            metrics["content_metrics"]["word_count"] = 0
         return {
             "id": row[0],
             "topic": row[1],
             "content": row[2],
             "config": json.loads(row[3]),
-            "metrics": json.loads(row[4]),
-            "created_at": row[5]
+            "metrics": metrics,
+            "created_at": datetime.strptime(row[5], "%Y-%m-%d %H:%M:%S").isoformat() if row[5] else None
         }
     return None
 
@@ -216,19 +254,158 @@ def get_articles(limit: int = 10, offset: int = 0) -> List[Dict[str, Any]]:
     c.execute("SELECT * FROM articles ORDER BY created_at DESC LIMIT ? OFFSET ?", (limit, offset))
     rows = c.fetchall()
     conn.close()
-    return [{
-        "id": row[0],
-        "topic": row[1],
-        "content": row[2],
-        "config": json.loads(row[3]),
-        "metrics": json.loads(row[4]),
-        "created_at": row[5]
-    } for row in rows]
+    articles = []
+    for row in rows:
+        metrics = json.loads(row[4])
+        # Ensure content_metrics and word_count exist
+        if "content_metrics" not in metrics:
+            metrics["content_metrics"] = {}
+        if "word_count" not in metrics["content_metrics"]:
+            metrics["content_metrics"]["word_count"] = 0
+        articles.append({
+            "id": row[0],
+            "topic": row[1],
+            "content": row[2],
+            "config": json.loads(row[3]),
+            "metrics": metrics,
+            "created_at": datetime.strptime(row[5], "%Y-%m-%d %H:%M:%S").isoformat() if row[5] else None
+        })
+    return articles
 
 # API endpoints
 @app.get("/", response_class=HTMLResponse)
-async def read_root(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+def mermaid_index(request: Request):
+    # Show the form with empty/default data
+    return templates.TemplateResponse("index.html", {
+        "request": request,
+        "mermaid_code": "",
+        "topic": "",
+        "svg": None,
+        "error": None
+    })
+
+@app.post("/", response_class=HTMLResponse)
+def generate_mermaid_diagram(request: Request, topic: str = Form("")):
+    svg = None
+    error = None
+    topic_to_use = topic if topic.strip() else None
+    try:
+        mermaid_syntax = generate_mermaid_with_gemini(topic=topic_to_use)
+        svg = mermaid_to_svg(mermaid_syntax)
+    except Exception as e:
+        error = f"Error generating diagram: {str(e)}"
+        svg = None
+    return templates.TemplateResponse("index.html", {
+        "request": request,
+        
+        "topic": topic,
+        "svg": svg,
+        "error": error
+    })
+
+@app.get("/api")
+async def read_api_root():
+    return {"message": "Welcome to AI Article Generator API", "docs_url": "/docs"}
+
+from fastapi import Body
+from fastapi.responses import JSONResponse
+
+@app.post("/api/generate-mermaid")
+def api_generate_mermaid(data: dict = Body(...)):
+    topic = data.get("topic", "")
+    
+    topic_to_use = topic if topic.strip() else None
+    try:
+        mermaid_syntax = generate_mermaid_with_gemini(topic=topic_to_use)
+        svg = mermaid_to_svg(mermaid_syntax)
+        return {"svg": svg, "mermaid_code": mermaid_syntax}
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"error": str(e)})
+
+@app.get("/api/sample-mermaid")
+def api_sample_mermaid():
+    # Example: generate a diagram from backend data
+    topic = "Live Backend Data"
+    mermaid_syntax = generate_mermaid_with_gemini(topic)
+    svg = mermaid_to_svg(mermaid_syntax)
+    return {"svg": svg, "mermaid_code": mermaid_syntax, "topic": topic}
+
+# Gemini-powered Mermaid code generator
+def generate_mermaid_with_gemini(topic: str = None) -> str:
+    """
+    Use Gemini to generate a highly unique, creative Mermaid diagram code for the given topic.
+    Adds a random creative twist and blacklists generic node names.
+    """
+    # If no topic, return a minimal default
+    if not topic or not topic.strip():
+        return "flowchart TD\n    A[Start] --> B[No input provided]"
+    import google.generativeai as genai
+    import random
+    if not api_key:
+        raise RuntimeError("Gemini API key is not set.")
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel("gemini-2.0-flash")
+    twists = [
+        "Make the flowchart whimsical or metaphorical.",
+        "Use a sports analogy.",
+        "Imagine the process as a journey through a fantasy world.",
+        "Add a humorous or surprising step.",
+        "Give each node a creative, non-generic name.",
+        "Make the flowchart look like a treasure hunt.",
+        "Use animal characters for each node.",
+        "Make the diagram resemble a cooking recipe.",
+        "Add a plot twist in the flow.",
+        "Use a superhero theme for the process."
+    ]
+    twist = random.choice(twists)
+    prompt = f"""
+You are an expert technical writer and diagram designer.
+Generate a valid Mermaid.js flowchart for the following topic.
+STRICTLY use only standard Mermaid flowchart syntax: 'flowchart TD' or 'graph LR'.
+Do NOT use subgraph, advanced shapes, or rare features.
+Do NOT use code fences or markdown.
+Do NOT use brackets [], {{}}, (), <> inside node names.
+Do NOT use colons, pipes, or double quotes in node names.
+Do NOT use any forbidden tokens: ``` , subgraph, call, click, linkStyle, classDef, class, end, style, rect, roundrect, hexagon, stadium, subroutine, c4, flowchart LR, graph TD, gantt, pie, erDiagram, journey, stateDiagram, mindmap, timeline, quadrantChart, requirementDiagram, gitGraph, entity, table, JSON, YAML, CSV, markdown.
+Only output the Mermaid code (no explanation, no markdown, no extra text).
+
+Topic: {topic}
+"""
+    response = model.generate_content(prompt)
+    code = response.text.strip()
+    # Post-process: Remove code fences, markdown, forbidden tokens
+    forbidden = ["```", "subgraph", "call", "click", "linkStyle", "classDef", "class ", "end", "style", "rect", "roundrect", "hexagon", "stadium", "subroutine", "c4", "flowchart LR", "graph TD", "gantt", "pie", "erDiagram", "journey", "stateDiagram", "mindmap", "timeline", "quadrantChart", "requirementDiagram", "gitGraph", "entity", "table", "JSON", "YAML", "CSV", "markdown"]
+    for token in forbidden:
+        if token in code:
+            return f"flowchart TD\n    A[Start] --> B[Diagram unavailable: invalid Mermaid generated]"
+    if not (code.startswith("flowchart TD") or code.startswith("graph LR")):
+        return f"flowchart TD\n    A[Start] --> B[Diagram unavailable: invalid Mermaid generated]"
+    return code
+
+@app.get("/generate-flowchart")
+async def generate_flowchart(topic: str):
+    """
+    Generate and return Mermaid diagram SVG for the given article topic using Gemini.
+    """
+    try:
+        mermaid_code = generate_mermaid_with_gemini(topic)
+        try:
+            svg_diagram = mermaid_to_svg(mermaid_code)
+        except Exception as e:
+            logger.error(f"Failed to generate flowchart for topic '{topic}' with Gemini: {str(e)}. Using fallback template.")
+            fallback_code = f"""
+            flowchart TD
+                A[Start] --> B[{topic} Research]
+                B --> C[Data Processing]
+                C --> D[Model Training]
+                D --> E[Deployment]
+                E --> F[User Interaction]
+            """
+            svg_diagram = mermaid_to_svg(fallback_code.strip())
+        return HTMLResponse(content=svg_diagram, media_type="image/svg+xml")
+    except Exception as e:
+        logger.error(f"Failed to generate flowchart for topic '{topic}': {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to generate flowchart dynamically: " + str(e))
 
 @app.get("/articles")
 async def list_articles(limit: int = 10, offset: int = 0):
@@ -256,19 +433,17 @@ async def generate_article(request: ArticleRequest):
             )
         
         # Check if API is available
-        if llm is None:
-            logger.error("LLM not initialized")
+        if api_key is None:
+            logger.error("Gemini API key not initialized")
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="AI service is not available. Please check your API key and configuration."
             )
         
-        # Generate the article using Gemini API directly
-        api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            raise ValueError("GEMINI_API_KEY not found in environment variables")
+        # Use the target word count as provided by the user
+        target_word_count = request.target_word_count
         
-        # Break down the generation into sections
+        # Generate the article using Gemini API directly
         sections = [
             "Introduction and Overview",
             "Key Concepts and Definitions",
@@ -277,152 +452,144 @@ async def generate_article(request: ArticleRequest):
             "Implementation Approaches",
             "Practical Applications",
             "Challenges and Limitations",
-            "Future Trends",
-            "FAQ Section",
-            "Code Examples",
-            "Diagrams",
-            "Practical Examples",
-            "References"
+            "Future Trends"
         ]
         
+        if request.include_code:
+            sections.append("Code Examples")
+        if request.include_diagrams:
+            sections.append("Diagrams")
+        if request.include_examples:
+            sections.append("Practical Examples")
+        if request.include_references:
+            sections.append("References")
+        if request.include_faq:
+            sections.append("FAQ Section")
+        
         generated_content = []
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
+        headers = {
+            'Content-Type': 'application/json'
+        }
         
-        for section in sections:
-            section_prompt = f"""
-            Generate detailed content for the section: {section}
-            
-            Topic: {request.topic}
-            Word count target: {request.target_word_count // len(sections)}
-            Tone: {request.tone}
-            Audience: {request.audience}
-            Complexity: {request.complexity}
-            
-            Requirements:
-            1. Provide comprehensive coverage
-            2. Include relevant examples
-            3. Use proper Markdown formatting
-            4. Add appropriate subheadings
-            5. Include data and statistics where applicable
-            
-            For Practical Applications section, include:
-            - Autonomous Vehicles
-            - Robotics
-            - Personalized Healthcare
-            - Financial Trading
-            - Customer Service
-            
-            For Challenges and Limitations section, include:
-            - Ethical Considerations
-            - Safety and Reliability
-            - Explainability and Transparency
-            - Resource Requirements
-            
-            For Future Trends section, include:
-            - Enhanced Reasoning Capabilities
-            - Improved Learning Algorithms
-            - Integration with other AI Technologies
-            - Broader Adoption Across Industries
-            """
-            
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
-            
-            headers = {
-                'Content-Type': 'application/json',
-            }
-            
-            data = {
-                "contents": [{
-                    "parts": [{"text": section_prompt}]
-                }],
-                "generationConfig": {
-                    "temperature": 0.7,
-                    "topP": 0.8,
-                    "topK": 40,
-                    "maxOutputTokens": 2048,
+        async with aiohttp.ClientSession() as session:
+            for section in sections:
+                section_word_count = target_word_count // len(sections)
+                logger.info(f"Generating section '{section}' with target word count: {section_word_count}")
+                section_prompt = f"""
+                Generate detailed content for the section: {section}
+                
+                Topic: {request.topic}
+                Word count target: {section_word_count}
+                Tone: {request.tone}
+                Audience: {request.audience}
+                Complexity: {request.complexity}
+                
+                Requirements:
+                - Be detailed and informative
+                - Use clear examples
+                - Maintain consistent tone
+                - Focus on accuracy
+                """
+                
+                data = {
+                    "contents": [{
+                        "parts": [{"text": section_prompt}]
+                    }]
                 }
-            }
-            
-            async with aiohttp.ClientSession() as session:
-                async with session.post(url, headers=headers, json=data) as response:
-                    if response.status != 200:
-                        error_text = await response.text()
-                        raise ValueError(f"API request failed: {error_text}")
-                    
-                    result = await response.json()
-                    if 'candidates' not in result or not result['candidates']:
-                        raise ValueError("No response from Gemini API")
-                    
-                    section_content = result['candidates'][0]['content']['parts'][0]['text']
-                    generated_content.append(f"# {section}\n\n{section_content}\n\n")
+                
+                try:
+                    async with session.post(url, headers=headers, json=data) as response:
+                        if response.status != 200:
+                            error_text = await response.text()
+                            logger.error(f"API request failed for section {section}: {error_text}")
+                            continue
+                        result = await response.json()
+                        if 'candidates' not in result or not result['candidates']:
+                            logger.error(f"No response from API for section {section}")
+                            continue
+                        section_content = result['candidates'][0]['content']['parts'][0]['text']
+                        generated_content.append(f"## {section}\n\n{section_content}\n\n")
+                except Exception as e:
+                    logger.error(f"Error generating content for section {section}: {str(e)}")
+                    continue
         
-        # Combine all sections
-        generated_article = "\n".join(generated_content)
-        
-        logger.info("Article generated successfully")
-        
-        try:
-            # Calculate metrics
-            metrics = {
-                "content_metrics": {
-                    "word_count": len(generated_article.split()),
-                    "paragraph_count": len(generated_article.split('\n\n')),
-                    "code_block_count": len(re.findall(r'```[\s\S]*?```', generated_article)),
-                    "diagram_count": len(re.findall(r'```mermaid[\s\S]*?```', generated_article)),
-                    "link_count": len(re.findall(r'\[.*?\]\(.*?\)', generated_article)),
-                    "heading_count": len(re.findall(r'^#+\s', generated_article, re.MULTILINE)),
-                    "avg_sentence_length": sum(len(s.split()) for s in re.split(r'[.!?]+', generated_article)) / len(re.split(r'[.!?]+', generated_article)),
-                    "reading_time_minutes": len(generated_article.split()) / 200,
-                    "structure_score": 0.8,
-                    "complexity_score": 0.7,
-                    "readability_score": 0.85,
-                    "seo_score": 0.75,
-                    "engagement_score": 0.8,
-                    "uniqueness_score": 0.9
-                },
-                "metadata": {
-                    "timestamp": datetime.now().isoformat(),
-                    "topic": request.topic,
-                    "tone": request.tone,
-                    "audience": request.audience,
-                    "complexity": request.complexity,
-                    "language": request.language
-                }
-            }
-            
-            # Save to database
-            article_id = save_article(
-                request.topic,
-                generated_article,
-                request.dict(),
-                metrics
-            )
-            
-            logger.info(f"Article saved successfully with ID: {article_id}")
-            
-            return {
-                "id": article_id,
-                "article": generated_article,
-                "metrics": metrics
-            }
-            
-        except Exception as e:
-            logger.error(f"Error during metrics calculation or database save: {str(e)}")
+        if not generated_content:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Error processing article: {str(e)}"
+                detail="Failed to generate any content"
             )
         
+        # Combine all sections
+        final_content = "\n".join(generated_content)
+        logger.info(f"Generated article length: {len(final_content.split())} words")
+
+        # If requested, append flow diagram SVG at the end of the article
+        if getattr(request, 'include_flow_diagram', False) or getattr(request, 'include_diagrams', False):
+            try:
+                mermaid_code = generate_mermaid_with_gemini(request.topic)
+                try:
+                    svg_diagram = mermaid_to_svg(mermaid_code)
+                except Exception as e:
+                    logger.error(f"Failed to generate flow diagram SVG with Gemini: {str(e)}. Using fallback template.")
+                    fallback_code = f"""
+                    flowchart TD
+                        A[Start] --> B[{request.topic} Research]
+                        B --> C[Data Processing]
+                        C --> D[Model Training]
+                        D --> E[Deployment]
+                        E --> F[User Interaction]
+                    """
+                    svg_diagram = mermaid_to_svg(fallback_code.strip())
+                final_content += f"\n\n## Flow Diagram\n\n<div>{svg_diagram}</div>\n\n"
+            except Exception as e:
+                logger.error(f"Failed to generate flow diagram SVG: {str(e)}")
+
+        # Prepare content metrics with default values
+        content_metrics = {
+            "structure_score": 0.85,
+            "readability_score": 0.9,
+            "seo_score": 0.8,
+            "engagement_score": 0.75,
+            "complexity_score": 0.7,
+            "uniqueness_score": 0.95,
+            "word_count": len(final_content.split()),
+            "reading_time_minutes": round(len(final_content.split()) / 200, 1)  # assuming 200 wpm reading speed
+        }
+
+        # Save to database
+        article_id = save_article(
+            topic=request.topic,
+            content=final_content,
+            config=request.dict(),
+            metrics={"content_metrics": content_metrics}
+        )
+        
+        response = {
+            "id": article_id,
+            "topic": request.topic,
+            "article": final_content,
+            "metrics": {"content_metrics": content_metrics}
+        }
+        
+        return response
+        
     except HTTPException as he:
-        logger.error(f"HTTP error in generate_article: {str(he)}")
         raise he
     except Exception as e:
-        logger.error(f"Unexpected error in generate_article: {str(e)}")
+        logger.error(f"Error in generate_article: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Unexpected error: {str(e)}"
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(e)
         )
 
 if __name__ == "__main__":
     import uvicorn
+    import sys
+    import socket
     logger.info("Starting FastAPI server")
-    uvicorn.run(app, host="0.0.0.0", port=8000) 
+    try:
+        uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
+    except Exception as e:
+        logger.error(f"Failed to start server: {str(e)}")
+        sys.exit(1)
