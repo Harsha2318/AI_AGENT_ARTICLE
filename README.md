@@ -57,6 +57,7 @@ $ echo GEMINI_API_KEY=your_api_key > .env
 # (Get your key from https://makersuite.google.com/app/apikey)
 
 # 5. Run the application
+$ uvicorn app:app --reload
 $ python app.py
 
 # 6. Open in browser
