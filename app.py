@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi import Request, APIRouter
 
-# Mermaid dynamic integration
+# --- Imports and Setup ---
 import traceback
 from pydantic import BaseModel, Field
 import google.generativeai as genai
@@ -29,7 +29,7 @@ import re
 import sqlite3
 from pathlib import Path
 
-# Configure logging
+# --- Logging Configuration ---
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -40,7 +40,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Initialize database
+# --- Database Initialization ---
 def init_db():
     db_path = Path("articles.db")
     if not db_path.exists():
@@ -59,7 +59,7 @@ def init_db():
 
 init_db()
 
-# Load environment variables
+# --- Load Environment Variables ---
 load_dotenv(override=True)
 
 from contextlib import asynccontextmanager
@@ -81,7 +81,7 @@ async def lifespan(app: FastAPI):
         api_key = None
     yield
 
-# Initialize FastAPI app with detailed documentation
+# --- FastAPI App Initialization ---
 app = FastAPI(
     title="AI Article Generator API",
     description="""
@@ -109,7 +109,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Create required directories
+# --- Ensure Required Directories Exist ---
 static_dir = Path("static")
 templates_dir = Path("templates")
 
@@ -118,7 +118,7 @@ for directory in [static_dir, templates_dir]:
         directory.mkdir(parents=True, exist_ok=True)
         logger.info(f"Created {directory} directory")
 
-# Mount static files and templates
+# --- Mount Static Files and Templates ---
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
@@ -177,7 +177,7 @@ async def lifespan(app: FastAPI):
         api_key = None
     yield
 
-# Custom exception handler
+# --- Custom Exception Handler ---
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc):
     logger.error(f"Global error: {str(exc)}")
@@ -186,7 +186,7 @@ async def global_exception_handler(request, exc):
         content={"detail": "An unexpected error occurred", "error": str(exc)}
     )
 
-# Define request models with detailed documentation
+# --- Request and Response Models ---
 class ArticleRequest(BaseModel):
     topic: str = Field(..., description="The topic to generate an article about", example="Artificial Intelligence")
     links: Optional[List[str]] = Field(default=None, description="Optional list of reference URLs", example=["https://example.com"])
@@ -214,7 +214,7 @@ class ArticleResponse(BaseModel):
     metrics: Dict[str, Any]
     created_at: datetime
 
-# Database functions
+# --- Database Functions ---
 def save_article(topic: str, content: str, config: Dict[str, Any], metrics: Dict[str, Any]) -> int:
     conn = sqlite3.connect("articles.db")
     c = conn.cursor()
@@ -272,7 +272,7 @@ def get_articles(limit: int = 10, offset: int = 0) -> List[Dict[str, Any]]:
         })
     return articles
 
-# API endpoints
+# --- API Endpoints ---
 @app.get("/", response_class=HTMLResponse)
 def mermaid_index(request: Request):
     # Show the form with empty/default data
@@ -330,7 +330,7 @@ def api_sample_mermaid():
     svg = mermaid_to_svg(mermaid_syntax)
     return {"svg": svg, "mermaid_code": mermaid_syntax, "topic": topic}
 
-# Gemini-powered Mermaid code generator
+# --- Gemini-powered Mermaid Code Generator ---
 def generate_mermaid_with_gemini(topic: str = None) -> str:
     """
     Use Gemini to generate a highly unique, creative Mermaid diagram code for the given topic.
@@ -583,6 +583,7 @@ async def generate_article(request: ArticleRequest):
             detail=str(e)
         )
 
+# --- Main Entrypoint for Local Development ---
 if __name__ == "__main__":
     import uvicorn
     import sys

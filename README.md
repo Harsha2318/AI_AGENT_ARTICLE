@@ -1,104 +1,142 @@
-# 🤖 AI Article Generator
+<div align="center">
+  <img src="https://img.shields.io/github/stars/Harsha2318/AI_AGENT_ARTICLE?style=social" alt="Stars">
+  <img src="https://img.shields.io/github/forks/Harsha2318/AI_AGENT_ARTICLE?style=social" alt="Forks">
+  <img src="https://img.shields.io/github/issues/Harsha2318/AI_AGENT_ARTICLE" alt="Issues">
+  <img src="https://img.shields.io/github/license/Harsha2318/AI_AGENT_ARTICLE" alt="License">
+</div>
 
-A powerful web application that generates high-quality AI-focused articles using Google's Gemini AI. Built with FastAPI and modern web technologies.
+# 🧠 AI Article Generator
 
-## ✨ Features
+> **Generate beautiful, structured, and insightful articles with the power of AI and dynamic diagrams.**
 
-### Article Generation
-- 🎯 Topic-based article generation
-- 📝 Customizable content structure
-- 🎨 Adjustable writing tone and style
-- 📊 Multiple content sections including:
-  - Introduction and Overview
-  - Key Concepts and Definitions
-  - Technical Architecture
-  - Implementation Approaches
-  - Practical Applications
-  - Future Trends
-  - FAQ Section
+![demo](https://raw.githubusercontent.com/Harsha2318/AI_AGENT_ARTICLE/main/static/demo.gif)
 
-### Customization Options
-- 🎭 Adjustable tone (professional, casual, technical)
-- 👥 Target audience selection
-- 📈 Complexity level control
-- 📏 Custom word count targets
-- 🌐 Language selection
+---
 
-### Advanced Features
-- 💻 Code snippet integration
-- 📊 Mermaid diagram support
-- 📚 Reference management
-- 📑 Table of contents generation
-- ❓ FAQ section generation
-- 🎯 SEO optimization
+## 🚀 Features
 
-### Analytics
-- 📊 Detailed content metrics
-- ⏱️ Reading time estimation
-- 📈 Content quality scores
-- 🔍 SEO analysis
-- 📱 Engagement metrics
+- **AI-powered Article Generation**: Create in-depth articles on any topic using Google Gemini AI.
+- **Dynamic Mermaid Diagrams**: Visualize concepts with auto-generated flow diagrams.
+- **Customizable Content**: Adjust tone, complexity, target audience, and section structure.
+- **Code & Reference Integration**: Embed code snippets and manage references easily.
+- **SEO & Quality Analytics**: Get metrics on structure, readability, SEO, and more.
+- **Modern UI**: Responsive, user-friendly, and visually appealing.
 
-## 🛠️ Technologies Used
+---
+
+## 🛠️ Tech Stack
 
 - **Backend**: FastAPI
-- **AI Model**: Google Gemini AI
-- **Frontend**: HTML/CSS/JavaScript
-- **Documentation**: OpenAPI/Swagger
+- **AI**: Google Gemini API
+- **Frontend**: HTML, CSS (Bootstrap), JavaScript
+- **Visualization**: Mermaid.js, Highlight.js
+- **Database**: SQLite
+- **Deployment**: Uvicorn
 
-## 🚀 Setup Instructions
+---
 
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/Harsha2318/AI_AGENT_ARTICLE.git
-   cd AI_AGENT_ARTICLE
-   ```
+## 📦 Installation & Setup
 
-2. **Create and activate virtual environment**:
-   ```bash
-   python -m venv venv
-   # On Windows
-   .\venv\Scripts\activate
-   # On Unix or MacOS
-   source venv/bin/activate
-   ```
+```bash
+# 1. Clone the repository
+$ git clone https://github.com/Harsha2318/AI_AGENT_ARTICLE.git
+$ cd AI_AGENT_ARTICLE
 
-3. **Install dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
+# 2. Create a virtual environment
+$ python -m venv venv
+# Activate (Windows)
+$ .\venv\Scripts\activate
+# Activate (Unix/Mac)
+$ source venv/bin/activate
 
-4. **Set up environment variables**:
-   - Create a `.env` file in the project root
-   - Add your Gemini API key:
-     ```
-     GEMINI_API_KEY=your_api_key_here
-     ```
-   - Get your API key from: https://makersuite.google.com/app/apikey
+# 3. Install dependencies
+$ pip install -r requirements.txt
 
-5. **Run the application**:
-   ```bash
-   python app.py
-   ```
+# 4. Set up environment variables
+$ echo GEMINI_API_KEY=your_api_key > .env
+# (Get your key from https://makersuite.google.com/app/apikey)
 
-6. **Access the application**:
-   - Open your browser and navigate to `http://localhost:8000`
-   - API documentation available at `http://localhost:8000/docs`
-   - Alternative API docs at `http://localhost:8000/redoc`
+# 5. Run the application
+$ python app.py
+
+# 6. Open in browser
+# Visit: http://localhost:8000
+```
+
+---
+
+## 🖥️ Demo
+
+> **Try it out!**
+>
+> ![Demo GIF](https://raw.githubusercontent.com/Harsha2318/AI_AGENT_ARTICLE/main/static/demo.gif)
+>
+> _Generate articles, visualize with Mermaid, and download markdown instantly._
+
+---
 
 ## 📁 Project Structure
 
-```
+```text
 AI_AGENT_ARTICLE/
-├── app.py              # Main FastAPI application
-├── requirements.txt    # Project dependencies
-├── templates/         # HTML templates
-│   └── index.html    # Main application template
-├── static/           # Static assets (CSS, JS, images)
-├── .env              # Environment variables
-├── .gitignore        # Git ignore rules
-└── README.md         # Project documentation
+├── app.py               # FastAPI backend
+├── templates/
+│   └── index.html       # Main HTML template
+├── static/              # Static assets (CSS, JS, images)
+├── requirements.txt     # Python dependencies
+├── mermaid_integration.py # Mermaid diagram utilities
+├── test.py              # URL scraping utility
+├── .env                 # API keys & secrets
+├── README.md            # This file
 ```
+
+---
+
+## 🌟 How It Works
+
+1. **Enter a Topic**: Specify your topic and configure settings.
+2. **Generate**: The app uses Gemini AI to create a structured article.
+3. **Visualize**: Mermaid diagrams are generated and embedded.
+4. **Download**: Export your article as markdown.
+
+---
+
+## 🤝 Contributing
+
+1. Fork the repo
+2. Create your feature branch (`git checkout -b short-branch-name`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin <branch-name>`)
+5. Open a Pull Request
+
+---
+
+## 🙏 Acknowledgments
+
+- [Google Gemini AI](https://ai.google.com/) for language intelligence
+- [FastAPI](https://fastapi.tiangolo.com/) for the backend framework
+- [Mermaid.js](https://mermaid-js.github.io/) for diagram rendering
+- [Bootstrap](https://getbootstrap.com/) for UI components
+- [Highlight.js](https://highlightjs.org/) for code highlighting
+
+---
+
+## 📬 Author
+
+- **Harsha P**  
+  [GitHub](https://github.com/Harsha2318) • [Email](mailto:harshagowda2318@gmail.com)
+
+---
+
+## ⭐️ Show Your Support
+
+If you found this project useful, please ⭐️ star the repo and share it!
+
+---
+
+<div align="center">
+  <sub>Made with ❤️ by Harsha P | 2025</sub>
+</div>
 
 ## 🔧 API Endpoints
 
