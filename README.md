@@ -70,7 +70,7 @@ $ python app.py
 
 > **Try it out!**
 >
-> ![Demo GIF](https://drive.google.com/file/d/1vSox_vqn6XA2YMy2glsr4mphIl1bRdGs/view?usp=sharing)
+> (https://drive.google.com/file/d/1vSox_vqn6XA2YMy2glsr4mphIl1bRdGs/view?usp=sharing)
 >
 > _Generate articles, visualize with Mermaid, and download markdown instantly._
 
