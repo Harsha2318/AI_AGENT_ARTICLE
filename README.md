@@ -52,6 +52,9 @@ $ source venv/bin/activate
 # 3. Install dependencies
 $ pip install -r requirements.txt
 
+# 4. Install Mermaid CLI (required for diagram rendering)
+$ npm install -g @mermaid-js/mermaid-cli
+
 # 4. Set up environment variables
 $ echo GEMINI_API_KEY=your_api_key > .env
 # (Get your key from https://makersuite.google.com/app/apikey)
