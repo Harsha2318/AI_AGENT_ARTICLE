@@ -1,3 +1,4 @@
+
 from fastapi import FastAPI, HTTPException, status, Form
 from mermaid_integration import generate_mermaid_with_gemini, mermaid_to_svg
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi import Request, APIRouter
 
-# --- Imports and Setup ---
+# Mermaid dynamic integration
 import traceback
 from pydantic import BaseModel, Field
 import google.generativeai as genai
@@ -29,7 +30,7 @@ import re
 import sqlite3
 from pathlib import Path
 
-# --- Logging Configuration ---
+# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -40,7 +41,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# --- Database Initialization ---
+# Initialize database
 def init_db():
     db_path = Path("articles.db")
     if not db_path.exists():
@@ -59,7 +60,7 @@ def init_db():
 
 init_db()
 
-# --- Load Environment Variables ---
+# Load environment variables
 load_dotenv(override=True)
 
 from contextlib import asynccontextmanager
@@ -81,7 +82,7 @@ async def lifespan(app: FastAPI):
         api_key = None
     yield
 
-# --- FastAPI App Initialization ---
+# Initialize FastAPI app with detailed documentation
 app = FastAPI(
     title="AI Article Generator API",
     description="""
@@ -109,7 +110,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# --- Ensure Required Directories Exist ---
+# Create required directories
 static_dir = Path("static")
 templates_dir = Path("templates")
 
@@ -118,7 +119,7 @@ for directory in [static_dir, templates_dir]:
         directory.mkdir(parents=True, exist_ok=True)
         logger.info(f"Created {directory} directory")
 
-# --- Mount Static Files and Templates ---
+# Mount static files and templates
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
@@ -177,7 +178,7 @@ async def lifespan(app: FastAPI):
         api_key = None
     yield
 
-# --- Custom Exception Handler ---
+# Custom exception handler
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc):
     logger.error(f"Global error: {str(exc)}")
@@ -186,7 +187,55 @@ async def global_exception_handler(request, exc):
         content={"detail": "An unexpected error occurred", "error": str(exc)}
     )
 
-# --- Request and Response Models ---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Define request models with detailed documentation
 class ArticleRequest(BaseModel):
     topic: str = Field(..., description="The topic to generate an article about", example="Artificial Intelligence")
     links: Optional[List[str]] = Field(default=None, description="Optional list of reference URLs", example=["https://example.com"])
@@ -214,7 +263,7 @@ class ArticleResponse(BaseModel):
     metrics: Dict[str, Any]
     created_at: datetime
 
-# --- Database Functions ---
+# Database functions
 def save_article(topic: str, content: str, config: Dict[str, Any], metrics: Dict[str, Any]) -> int:
     conn = sqlite3.connect("articles.db")
     c = conn.cursor()
@@ -272,19 +321,19 @@ def get_articles(limit: int = 10, offset: int = 0) -> List[Dict[str, Any]]:
         })
     return articles
 
-# --- API Endpoints ---
-# --- Independent Mermaid Diagram Generator Endpoints ---
-@app.get("/mermaid", response_class=HTMLResponse)
+# API endpoints
+@app.get("/", response_class=HTMLResponse)
 def mermaid_index(request: Request):
-    # Show the form with empty/default data for Mermaid diagram
-    return templates.TemplateResponse("mermaid.html", {
+    # Show the form with empty/default data
+    return templates.TemplateResponse("index.html", {
         "request": request,
+        "mermaid_code": "",
         "topic": "",
         "svg": None,
         "error": None
     })
 
-@app.post("/mermaid", response_class=HTMLResponse)
+@app.post("/", response_class=HTMLResponse)
 def generate_mermaid_diagram(request: Request, topic: str = Form("")):
     svg = None
     error = None
@@ -295,19 +344,12 @@ def generate_mermaid_diagram(request: Request, topic: str = Form("")):
     except Exception as e:
         error = f"Error generating diagram: {str(e)}"
         svg = None
-    return templates.TemplateResponse("mermaid.html", {
+    return templates.TemplateResponse("index.html", {
         "request": request,
+        
         "topic": topic,
         "svg": svg,
         "error": error
-    })
-
-# --- Main Article Generator stays at '/' ---
-@app.get("/", response_class=HTMLResponse)
-def article_index(request: Request):
-    # Show the article generator UI
-    return templates.TemplateResponse("index.html", {
-        "request": request
     })
 
 @app.get("/api")
@@ -337,7 +379,7 @@ def api_sample_mermaid():
     svg = mermaid_to_svg(mermaid_syntax)
     return {"svg": svg, "mermaid_code": mermaid_syntax, "topic": topic}
 
-# --- Gemini-powered Mermaid Code Generator ---
+# Gemini-powered Mermaid code generator
 def generate_mermaid_with_gemini(topic: str = None) -> str:
     """
     Use Gemini to generate a highly unique, creative Mermaid diagram code for the given topic.
@@ -430,7 +472,7 @@ async def get_article_by_id(article_id: int):
 async def generate_article(request: ArticleRequest):
     try:
         logger.info(f"Starting article generation for topic: {request.topic}")
-        
+
         # Validate input
         if not request.topic or len(request.topic.strip()) == 0:
             logger.warning("Empty topic provided")
@@ -438,7 +480,7 @@ async def generate_article(request: ArticleRequest):
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Topic cannot be empty"
             )
-        
+
         # Check if API is available
         if api_key is None:
             logger.error("Gemini API key not initialized")
@@ -446,17 +488,12 @@ async def generate_article(request: ArticleRequest):
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="AI service is not available. Please check your API key and configuration."
             )
-        
-        # Determine the target word count: use user input if valid, else default to 3000
-        try:
-            target_word_count = int(request.target_word_count)
-            if target_word_count < 100 or target_word_count > 5000:
-                logger.warning(f"Target word count {target_word_count} out of range, using default 3000.")
-                target_word_count = 3000
-        except (ValueError, TypeError):
-            target_word_count = 3000
-        logger.info(f"Target word count set to: {target_word_count}")
-        
+
+        # Use the target word count as provided by the user
+        target_word_count = request.target_word_count
+
+
+
         # Generate the article using Gemini API directly
         sections = [
             "Introduction and Overview",
@@ -467,29 +504,30 @@ async def generate_article(request: ArticleRequest):
             "Practical Applications",
             "Challenges and Limitations",
             "Future Trends"
+
+
+
+
+
         ]
-        # Append conditional sections only once and avoid duplicates
-        extra_sections = []
+
         if request.include_code:
-            extra_sections.append("Code Examples")
+            sections.append("Code Examples")
         if request.include_diagrams:
-            extra_sections.append("Diagrams")
+            sections.append("Diagrams")
         if request.include_examples:
-            extra_sections.append("Practical Examples")
+            sections.append("Practical Examples")
         if request.include_references:
-            extra_sections.append("References")
+            sections.append("References")
         if request.include_faq:
-            extra_sections.append("FAQ Section")
-        # Combine and remove duplicates while preserving order
-        seen = set()
-        sections = [s for s in sections + extra_sections if not (s in seen or seen.add(s))]
+            sections.append("FAQ Section")
         
         generated_content = []
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
         headers = {
             'Content-Type': 'application/json'
         }
-        
+
         async with aiohttp.ClientSession() as session:
             for section in sections:
                 section_word_count = target_word_count // len(sections)
@@ -498,8 +536,7 @@ async def generate_article(request: ArticleRequest):
                 Generate detailed content for the section: {section}
                 
                 Topic: {request.topic}
-                Word count target (STRICT LIMIT): {section_word_count}
-                Do NOT exceed this word count. If you finish early, stop.
+                Word count target: {section_word_count}
                 Tone: {request.tone}
                 Audience: {request.audience}
                 Complexity: {request.complexity}
@@ -509,13 +546,40 @@ async def generate_article(request: ArticleRequest):
                 - Use clear examples
                 - Maintain consistent tone
                 - Focus on accuracy
-                - Do NOT exceed the word count limit for this section
                 """
                 
                 data = {
                     "contents": [{
                         "parts": [{"text": section_prompt}]
                     }]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                 }
                 
                 try:
@@ -528,34 +592,73 @@ async def generate_article(request: ArticleRequest):
                         if 'candidates' not in result or not result['candidates']:
                             logger.error(f"No response from API for section {section}")
                             continue
-                        import re
                         section_content = result['candidates'][0]['content']['parts'][0]['text']
-                        # Remove leading markdown heading(s) from Gemini output
-                        section_content = re.sub(r'^#+\s.*\n+', '', section_content.lstrip(), flags=re.MULTILINE)
-
                         generated_content.append(f"## {section}\n\n{section_content}\n\n")
                 except Exception as e:
                     logger.error(f"Error generating content for section {section}: {str(e)}")
                     continue
-        
+
+
+
+
         if not generated_content:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to generate any content"
             )
-        
+
         # Combine all sections
         final_content = "\n".join(generated_content)
-        # Enforce the overall target word count strictly
-        words = final_content.split()
-        if len(words) > target_word_count:
-            logger.info(f"Trimming article from {len(words)} to {target_word_count} words as per target.")
-            final_content = " ".join(words[:target_word_count])
         logger.info(f"Generated article length: {len(final_content.split())} words")
 
-
-        # Insert the flow diagram if requested
-        if getattr(request, 'include_flow_diagram', False):
+        # If requested, append flow diagram SVG at the end of the article
+        if getattr(request, 'include_flow_diagram', False) or getattr(request, 'include_diagrams', False):
             try:
                 mermaid_code = generate_mermaid_with_gemini(request.topic)
                 try:
@@ -571,34 +674,9 @@ async def generate_article(request: ArticleRequest):
                         E --> F[User Interaction]
                     """
                     svg_diagram = mermaid_to_svg(fallback_code.strip())
-                svg_tag = f'\n<div style="text-align:center; margin:2em 0;">{svg_diagram}</div>\n'
-                import re
-                # Try to insert after 'Technical Architecture' section
-                tech_arch_pattern = r'(##\s*Technical Architecture.*?\n)'
-                tech_match = re.search(tech_arch_pattern, final_content, flags=re.IGNORECASE)
-                if tech_match:
-                    insert_pos = tech_match.end(1)
-                    final_content = final_content[:insert_pos] + svg_tag + final_content[insert_pos:]
-                else:
-                    # Try to insert after 'Core Components' section
-                    core_comp_pattern = r'(##\s*Core Components.*?\n)'
-                    core_match = re.search(core_comp_pattern, final_content, flags=re.IGNORECASE)
-                    if core_match:
-                        insert_pos = core_match.end(1)
-                        final_content = final_content[:insert_pos] + svg_tag + final_content[insert_pos:]
-                    else:
-                        # Fallback: insert after first heading
-                        heading_pattern = r'(^(#+\s.*\n))'
-                        match = re.search(heading_pattern, final_content, flags=re.MULTILINE)
-                        if match:
-                            insert_pos = match.end(1)
-                            final_content = final_content[:insert_pos] + svg_tag + final_content[insert_pos:]
-                        else:
-                            # No heading found, append at the end
-                            final_content += f"\n\n## Flow Diagram\n\n{svg_tag}\n\n"
+                final_content += f"\n\n## Flow Diagram\n\n<div>{svg_diagram}</div>\n\n"
             except Exception as e:
-                logger.error(f"Failed to generate flow diagram: {str(e)}")
-                final_content += '\n\n[Flow diagram unavailable]\n'
+                logger.error(f"Failed to generate flow diagram SVG: {str(e)}")
 
         # Prepare content metrics with default values
         content_metrics = {
@@ -630,6 +708,7 @@ async def generate_article(request: ArticleRequest):
         return response
         
     except HTTPException as he:
+
         raise he
     except Exception as e:
         logger.error(f"Error in generate_article: {str(e)}")
@@ -638,7 +717,6 @@ async def generate_article(request: ArticleRequest):
             detail=str(e)
         )
 
-# --- Main Entrypoint for Local Development ---
 if __name__ == "__main__":
     import uvicorn
     import sys
