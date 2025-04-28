@@ -1,5 +1,5 @@
 
-from fastapi import FastAPI, HTTPException, status, Form
+from fastapi import FastAPI, HTTPException, status, Form, Body
 from mermaid_integration import generate_mermaid_with_gemini, mermaid_to_svg
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse
@@ -29,6 +29,12 @@ from datetime import datetime
 import re
 import sqlite3
 from pathlib import Path
+from pymongo import MongoClient
+
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
+mongo_client = MongoClient(MONGO_URI)
+mongo_db = mongo_client["ai_agent_article"]
+mongo_articles = mongo_db["articles"]
 
 # Configure logging
 logging.basicConfig(
@@ -187,54 +193,6 @@ async def global_exception_handler(request, exc):
         content={"detail": "An unexpected error occurred", "error": str(exc)}
     )
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # Define request models with detailed documentation
 class ArticleRequest(BaseModel):
     topic: str = Field(..., description="The topic to generate an article about", example="Artificial Intelligence")
@@ -332,6 +290,18 @@ def mermaid_index(request: Request):
         "svg": None,
         "error": None
     })
+
+@app.post("/save-article")
+async def save_article_mongo(article: dict = Body(...)):
+    """
+    Store an article in MongoDB. Expects a dict with topic, content, config, metrics, and created_at.
+    """
+    try:
+        result = mongo_articles.insert_one(article)
+        return {"inserted_id": str(result.inserted_id)}
+    except Exception as e:
+        logger.error(f"MongoDB save error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to store article in MongoDB.")
 
 @app.post("/", response_class=HTMLResponse)
 def generate_mermaid_diagram(request: Request, topic: str = Form("")):

@@ -30,7 +30,7 @@
 - **AI**: Google Gemini API
 - **Frontend**: HTML, CSS (Bootstrap), JavaScript
 - **Visualization**: Mermaid.js, Highlight.js
-- **Database**: SQLite
+- **Database**: MongoDB (via pymongo), previously SQLite
 - **Deployment**: Uvicorn
 
 ---
@@ -55,21 +55,23 @@ $ pip install -r requirements.txt
 # 4. Install Mermaid CLI (required for diagram rendering)
 $ npm install -g @mermaid-js/mermaid-cli
 
-# 4. Set up environment variables
+# 5. Set up environment variables
 $ echo GEMINI_API_KEY=your_api_key > .env
-# (Get your key from https://makersuite.google.com/app/apikey)
+$ echo MONGO_URI=mongodb://localhost:27017/Hidevs >> .env
+# (Get your Gemini key from https://makersuite.google.com/app/apikey)
+# (Ensure MongoDB is running locally or update the URI accordingly)
 
-# 5. Run the application
+# 6. Start MongoDB (if not already running):
+#   - Windows: Run `mongod` from your terminal or start the MongoDB service.
+#   - Linux/Mac: Use your preferred method to start MongoDB.
+
+# 7. Run the application
 $ uvicorn app:app --reload
-$ python app.py
-
-# 6. Open in browser
-# Visit: http://localhost:8000
 ```
 
 ---
 
-## 🖥️ Demo
+## Demo
 
 > **Try it out!**
 >
@@ -79,7 +81,7 @@ $ python app.py
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```text
 AI_AGENT_ARTICLE/

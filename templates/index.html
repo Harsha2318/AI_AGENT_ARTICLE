@@ -699,13 +699,68 @@
             }
         }
 
-        function downloadArticle() {
+        async function downloadArticle() {
             const markdown = document.getElementById('markdownContent').textContent;
+            const topic = document.getElementById('topic').value;
+            const wordCount = document.getElementById('wordCount').value;
+            const includeCode = document.getElementById('includeCode').checked;
+            const includeDiagrams = document.getElementById('includeDiagrams').checked;
+            const includeExamples = document.getElementById('includeExamples').checked;
+            const includeReferences = document.getElementById('includeReferences').checked;
+            const includeSummary = document.getElementById('includeSummary').checked;
+            const includeToc = document.getElementById('includeToc').checked;
+            const includeKeyPoints = document.getElementById('includeKeyPoints').checked;
+            const includeFaq = document.getElementById('includeFaq').checked;
+            const tone = document.getElementById('tone').value;
+            const audience = document.getElementById('audience').value;
+            const complexity = document.getElementById('complexity').value;
+            const language = document.getElementById('language').value;
+            // Try to get metrics from the previewed article
+            let metrics = null;
+            try {
+                metrics = window.lastGeneratedMetrics || {};
+            } catch {
+                metrics = {};
+            }
+            // Save to MongoDB
+            try {
+                await fetch('/save-article', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        topic: topic,
+                        content: markdown,
+                        config: {
+                            target_word_count: wordCount,
+                            include_code: includeCode,
+                            include_diagrams: includeDiagrams,
+                            include_flow_diagram: document.getElementById('includeFlowDiagram') ? document.getElementById('includeFlowDiagram').checked : false,
+                            include_examples: includeExamples,
+                            include_references: includeReferences,
+                            include_summary: includeSummary,
+                            include_toc: includeToc,
+                            include_key_points: includeKeyPoints,
+                            include_faq: includeFaq,
+                            tone: tone,
+                            audience: audience,
+                            complexity: complexity,
+                            language: language
+                        },
+                        metrics: metrics,
+                        created_at: new Date().toISOString()
+                    })
+                });
+            } catch (dbErr) {
+                console.error('Failed to save article to MongoDB:', dbErr);
+            }
+            // Download as markdown
             const blob = new Blob([markdown], { type: 'text/markdown' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `${document.getElementById('topic').value.toLowerCase().replace(/\s+/g, '-')}.md`;
+            a.download = `${topic.toLowerCase().replace(/\s+/g, '-')}.md`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
